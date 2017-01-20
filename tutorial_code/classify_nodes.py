@@ -7,18 +7,21 @@ from sklearn import cross_validation
 from sklearn.cross_validation import StratifiedKFold as KFold
 from sklearn.metrics import classification_report
 from sklearn.ensemble import RandomForestClassifier as RF
+import skimage.measure as skm 
 import xgboost as xgb
 
 def getRegionFromMap(slice_npy):
     thr = np.where(slice_npy > np.mean(slice_npy),0.,1.0)
-    label_image = label(thr)
+    print("got label",thr)
+    label_image = skm.label(thr)
     labels = label_image.astype(int)
-    regions = regionprops(labels)
+    regions = skm.regionprops(labels)
     return regions
 
 def getRegionMetricRow(fname = "nodules.npy"):
     # fname, numpy array of dimension [#slices, 1, 512, 512] containing the images
-    seg = np.load(fname)
+    print("about to load")
+    seg = np.load("masksTestPredicted.npy")
     nslices = seg.shape[0]
     
     #metrics
@@ -38,6 +41,7 @@ def getRegionMetricRow(fname = "nodules.npy"):
     
     areas = []
     eqDiameters = []
+    print("did load ", nslices)
     for slicen in range(nslices):
         regions = getRegionFromMap(seg[slicen,0,:,:])
         for region in regions:
@@ -51,7 +55,11 @@ def getRegionMetricRow(fname = "nodules.npy"):
             weightedX += region.centroid[0]*region.area
             weightedY += region.centroid[1]*region.area
             numNodes += 1
-            
+
+    if (totalArea * numNodes)  == 0:
+        return np.array([])
+
+  
     weightedX = weightedX / totalArea 
     weightedY = weightedY / totalArea
     avgArea = totalArea / numNodes
@@ -71,7 +79,7 @@ def getRegionMetricRow(fname = "nodules.npy"):
 
 def createFeatureDataset(nodfiles=None):
     if nodfiles == None:
-        noddir = "/home/jmulholland/NLST_nodules/"
+        noddir = "predict/"
         nodfiles = glob(noddir +"*npy")
     # dict with mapping between truth and 
     truthdata = pickle.load(open("truthdict.pkl",'r'))
@@ -79,11 +87,16 @@ def createFeatureDataset(nodfiles=None):
     feature_array = np.zeros((len(nodfiles),numfeatures))
     truth_metric = np.zeros((len(nodfiles)))
     
+    counter = 0 
     for i,nodfile in enumerate(nodfiles):
-        patID = nodfile.split("_")[2]
-        truth_metric[i] = truthdata[int(patID)]
-        feature_array[i] = getRegionMetricRow(nodfile)
-    
+        arr = getRegionMetricRow(nodfile)
+        if arr.size > 0:
+            patID = nodfile.split("_")[2]
+            truth_metric[counter] = truthdata[int(patID)]
+            feature_array[counter] = arr
+            counter += 1
+        # we should save our misses
+    print("we have items ", len(truth_metric))
     np.save("dataY.npy", truth_metric)
     np.save("dataX.npy", feature_array)
 
@@ -108,19 +121,19 @@ def classifyData():
         clf = RF(n_estimators=100, n_jobs=3)
         clf.fit(X_train, y_train)
         y_pred[test] = clf.predict(X_test)
-    print classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"])
+    print( classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"]))
     print("logloss",logloss(Y, y_pred))
 
     # All Cancer
-    print "Predicting all positive"
+    print ("Predicting all positive")
     y_pred = np.ones(Y.shape)
-    print classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"])
+    print( classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"]))
     print("logloss",logloss(Y, y_pred))
 
     # No Cancer
-    print "Predicting all negative"
+    print ("Predicting all negative")
     y_pred = Y*0
-    print classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"])
+    print( classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"]))
     print("logloss",logloss(Y, y_pred))
 
     # try XGBoost
@@ -132,7 +145,7 @@ def classifyData():
         clf = xgb.XGBClassifier(objective="binary:logistic")
         clf.fit(X_train, y_train)
         y_pred[test] = clf.predict(X_test)
-    print classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"])
+    print( classification_report(Y, y_pred, target_names=["No Cancer", "Cancer"]))
     print("logloss",logloss(Y, y_pred))
 
 if __name__ == "__main__":

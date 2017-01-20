@@ -55,9 +55,9 @@ Returns uint16 version
 ############
 #
 # Getting list of image files
-luna_path = "/home/jonathan/LUNA2016/"
-luna_subset_path = luna_path+"subset1/"
-output_path = "/home/jonathan/tutorial/"
+luna_path = "/data1/cancer/LUNA2016/"
+luna_subset_path = luna_path+"subset6/"
+output_path = "/data1/cancer/tutorial/"
 file_list=glob(luna_subset_path+"*.mhd")
 
 
@@ -82,7 +82,7 @@ df_node = df_node.dropna()
 #
 fcount = 0
 for img_file in file_list:
-    print "Getting mask for image file %s" % img_file.replace(luna_subset_path,"")
+    print( "Getting mask for image file %s" % img_file.replace(luna_subset_path,""))
     mini_df = df_node[df_node["file"]==img_file] #get all nodules associate with file
     if len(mini_df)>0:    # some files may not have a nodule--skipping those 
         biggest_node = np.argsort(mini_df["diameter_mm"].values)[-1]   # just using the biggest node

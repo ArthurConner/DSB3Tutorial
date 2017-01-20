@@ -8,7 +8,7 @@ from keras.optimizers import SGD
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as K
 
-working_path = "/home/jonathan/tutorial/"
+working_path = "/data1/cancer/tutorial/"
 
 K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
 
